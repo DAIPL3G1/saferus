@@ -5,6 +5,7 @@
  */
 package com.saferus.test.model;
 
+import java.io.Serializable;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
@@ -12,24 +13,28 @@ import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.Table;
 
+/**
+ *
+ * @author lucasbrito
+ */
 @Entity
-@Table(name = "role")
-public class Role {
+@Table(name = "Role")
+public class Role implements Serializable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
-    @Column(name = "role_id")
-    private int id;
+    @Column(name = "idRole")
+    private int idRole;
 
     @Column(name = "role")
     private String role;
 
-    public int getId() {
-        return id;
+    public int getIdRole() {
+        return idRole;
     }
 
-    public void setId(int id) {
-        this.id = id;
+    public void setIdRole(int id) {
+        this.idRole = id;
     }
 
     public String getRole() {

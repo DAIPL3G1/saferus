@@ -33,8 +33,9 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
     @Autowired
     private DataSource dataSource;
 
-    private final String USERS_QUERY = "select email, password, active from user where email=?";
-    private final String ROLES_QUERY = "select u.email, r.role from user u inner join user_role ur on (u.id = ur.user_id) inner join role r on (ur.role_id=r.role_id) where u.email=?";
+    private final String USERS_QUERY = "select email, password, ativo from conta where email=?";
+    private final String ROLES_QUERY = "select c.email, r.role from conta c inner join utilizador_role ur on (c.id_conta = ur.conta_id) inner join role r on (ur.role_id=r.id_role) where c.email=?";
+
 
     @Override
     protected void configure(AuthenticationManagerBuilder auth) throws Exception {
@@ -50,11 +51,14 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
         http.authorizeRequests()
                 .antMatchers("/").permitAll()
                 .antMatchers("/login").permitAll()
-                .antMatchers("/signup").permitAll()
-                .antMatchers("/home/**").hasAuthority("ADMIN").anyRequest()
+                .antMatchers("/signup/utilizador").permitAll()
+                .antMatchers("/signup/mediador").permitAll()
+                .antMatchers("/dados/").permitAll()
+                .antMatchers("/dados/{id}").permitAll()
+                .antMatchers("/dashboard").hasAuthority("ADMIN").anyRequest()
                 .authenticated().and().csrf().disable()
                 .formLogin().loginPage("/login").failureUrl("/login?error=true")
-                .defaultSuccessUrl("/home/home")
+                .defaultSuccessUrl("/home")
                 .usernameParameter("email")
                 .passwordParameter("password")
                 .and().logout()
@@ -64,12 +68,6 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
                 .tokenRepository(persistentTokenRepository())
                 .tokenValiditySeconds(60 * 60)
                 .and().exceptionHandling().accessDeniedPage("/access_denied");
-        http.sessionManagement()
-                .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
-                .sessionFixation().migrateSession()
-                .invalidSessionUrl("/invalidSession.html")
-                .maximumSessions(2)
-                .expiredUrl("/sessionExpired.html");
     }
 
     @Bean
