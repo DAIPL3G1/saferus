@@ -1,5 +1,5 @@
 const urlBaseSQL = "https://saferusbackend.herokuapp.com";
-const idBroker = localStorage.getItem("idUser");
+const idBroker = localStorage.getItem("user");
 const auth = localStorage.getItem("auth");
 
 window.onload = () => {
@@ -26,7 +26,6 @@ window.onload = () => {
     const readViagensUsers = document.getElementById('viagensUsers');
 
 
-    //CONFIRMAR COM O LUCASSSSSSSSSSSSSSSSSSSSSSSSS                  IMPORTANTE
     //numero total kms percorridos dos clientes
     const numberkms = async() => {
         const response = await fetch(`${urlBaseSQL}/statistics/kms`, {
@@ -41,6 +40,7 @@ window.onload = () => {
         }
         numeroKms.innerHTML = numero;
     }
+    numberkms();
     //numero total de clientes
     async function numberClients() {
         const response = await fetch(`${urlBaseSQL}/read/all/clients/${idBroker}`, {
@@ -58,7 +58,7 @@ window.onload = () => {
     numberClients()
     //numero total de pedidos de vinculaçao
     async function numberRequests() {
-        const response = await fetch(`${urlBaseSQL}/bind/request/pending/${idBroker}`, {
+        const response = await fetch(`${urlBaseSQL}/readAllBinds`, {
             headers: {
                 'Authorization': auth
             }
@@ -66,8 +66,13 @@ window.onload = () => {
         let numero = 0;
         if (response.status === 200) {
             const pedidos = await response.json();
-            // numero = pedidos[0].numberRequests;                     //funcao que vem do backend
-            numero = pedidos.length;
+            for (const pedido of pedidos) {
+                if (pedido.broker.nif == idBroker) {
+                    if (pedido.request == 1) {
+                        numero += 1;
+                    }
+                }
+            }
         }
         numeroPedidos.innerHTML = numero;
     }
@@ -105,20 +110,20 @@ window.onload = () => {
         }
         else {
             swal({
-                title: 'Ocorreu um erro ao carregar os seus dados. Tente novamente!',
+                title: 'Ocorreu um erro a carregar os seus dados. Tente novamente!',
                 type: 'warning',
                 showCloseButton: false,
+                showConfirmButton: false,
                 focusConfirm: false,
-                confirmButtonText: 'Sair',
-                confirmButtonColor: '#B47676'
-            })
-
+                timer: 3000
+            });
+            logout();
         }
     }
     renderDadosMediador();
 
     //INICIO MEU ESTATISTICAS CLIENTES
-    async function renderEstatisticasClientes() {
+    const renderEstatisticasClientes = async() => {
         let txt = `<thead>
                     <tr>
                       <th class="centered"><i class="fa fa-user"></i> Cliente</th>
@@ -131,49 +136,29 @@ window.onload = () => {
                   </thead>
                   <tbody>`;
 
-        const response1 = await fetch(`${urlBaseSQL}/read/all/clients/${idBroker}`, {
-            headers: {
-                'Authorization': auth
-            }
-        });
-        const response2 = await fetch(`${urlBaseSQL}/read/bound/vehicles/${idBroker}`, {
+        const response1 = await fetch(`${urlBaseSQL}/read/bound/vehicles/${idBroker}`, {
             headers: {
                 'Authorization': auth
             }
         });
         if (response1.status == 200) {
-            const users = await response1.json();
-            if (response2.status == 200) {
-                const veicules = await response2.json();
-                for (const user of users) {
-                    for (const veicule of veicules) {
-                        if (user.nif == veicule.user.nif) {
-                            txt += `<tr>
-                                            <td>${user.firstname} ${user.lastname}</td>
-                                            <td>${user.nif}</td>
+            const veicules = await response1.json();
+            for (const veicule of veicules) {
+                txt += `<tr>
+                                            <td>${veicule.user.firstname} ${veicule.user.lastname}</td>
+                                            <td>${veicule.user.nif}</td>
                                             <td>${veicule.plate}</td>
                                              <td>${veicule.brand}</td>
-                                             <td><button id="${veicule.id}" class="btn-table btn-xs estatisticas"><i class="fa fa-plus"></i></button></td>
-                                             <td> <button class="btn btn-danger btn-xs desvincular" id="${veicule.id}"><i class=" fa fa-remove"></i>Desvincular</button></td>
+                                             <td><button id="${veicule.id}" class="btn-table btn-sm estatisticas"><i class="fa fa-plus"></i></button></td>
+                                             <td><button class="btn btn-danger btn-sm desvincular" id="${veicule.id}">Desvincular</button></td>
                                     </tr>`;
-                        }
-                    }
-                }
-
-                txt += `</tbody>`;
-                readVeiculosSegurados.innerHTML = txt;
             }
+
+            txt += `</tbody>`;
+            readVeiculosSegurados.innerHTML = txt;
         }
         else {
-            swal({
-                title: 'Não existem informações para mostrar!',
-                type: 'warning',
-                showCloseButton: false,
-                focusConfirm: false,
-                confirmButtonText: 'Sair',
-                confirmButtonColor: '#B47676'
-            });
-            logout();
+            readVeiculosSegurados.innerHTML = "";
         }
 
 
@@ -185,12 +170,16 @@ window.onload = () => {
                     headers: {
                         'Authorization': auth
                     }
-                }); //falta url de todos os veiculos registados
+                });
                 if (response.status == 200) {
                     const veicules = await response.json();
                     for (const veicule of veicules) {
                         if (veicule.id == btnEstatisticas[i].getAttribute('id')) {
-                            const response1 = await fetch(`${urlBaseSQL}/trip/read/data/${veicule.id}`); //outro servidor- VITOR TRATA DISTO
+                            const response1 = await fetch(`${urlBaseSQL}/trip/read/data/${veicule.id}`, {
+                                headers: {
+                                    "Authorization": auth
+                                }
+                            });
                             if (response1.status == 200) {
                                 const viagens = await response1.json();
                                 let txt = `<table class="table table-striped table-advance table-hover centered">
@@ -249,9 +238,9 @@ window.onload = () => {
                                     title: 'Não existem estatísticas para apresentar!',
                                     type: 'warning',
                                     showCloseButton: false,
+                                    showConfirmButton: false,
                                     focusConfirm: false,
-                                    confirmButtonText: 'Sair',
-                                    confirmButtonColor: '#B47676'
+                                    timer: 3000
                                 });
                             }
                         }
@@ -289,23 +278,33 @@ window.onload = () => {
                                     title: 'Veículo desvinculado com sucesso!',
                                     type: 'success',
                                     showCloseButton: false,
+                                    showConfirmButton: false,
                                     focusConfirm: false,
-                                    confirmButtonColor: '#B47676',
                                     timer: 1500
-                                });
-                                renderEstatisticasClientes();
+                                }).then(() => {
+                                    console.log("ANA XAVIER");
+                                    renderEstatisticasClientes();
+                                    renderPedidosVinculacao();
+                                    numberClients();
+                                    numberRequests();
+                                    numberkms();
+                                    numberVeicules();
+                                })
                             }
-
                         }
                         catch (err) {
                             swal({
                                 type: 'error',
                                 title: 'Erro',
-                                confirmButtonColor: '#B47676',
+                                showCloseButton: false,
+                                showConfirmButton: false,
+                                focusConfirm: false,
+                                timer: 1500,
                                 text: err
-                            });
+                            }).then(() => {
+                                renderEstatisticasClientes();
+                            })
                         }
-                        renderEstatisticasClientes();
                     }
                 });
             });
@@ -328,7 +327,7 @@ window.onload = () => {
                     </thead>
                     <tbody>`;
 
-        const response = await fetch(`${urlBaseSQL}/bind/request/pending/${idBroker}`, {
+        const response = await fetch(`${urlBaseSQL}/readAllBinds`, {
             headers: {
                 'Authorization': auth
             }
@@ -342,50 +341,45 @@ window.onload = () => {
             headers: {
                 'Authorization': auth
             }
-        }); //FALTA ROTA QUE LE TODOS OS VEICULOS
+        });
 
         if (response.status == 200) {
             const pedidos = await response.json();
-            console.log(pedidos);
             if (response1.status == 200) {
                 const users = await response1.json();
                 console.log(users);
                 if (response2.status == 200) {
                     const veicules = await response2.json();
-                    console.log(veicules);
                     for (const pedido of pedidos) {
-                        //for (const user of users) {
-                        //  for (const veicule of veicules) {
-                        txt += `<tr>
+                        if (pedido.broker.nif == idBroker && pedido.request == 1) {
+                            txt += `<tr>
                                 <td>${pedido.user.firstname} ${pedido.user.lastname}</td>
                                 <td>${pedido.user.nif}</td>
                                 <td>${pedido.vehicle.plate}</td>
                                 <td>${pedido.vehicle.brand}</td>
-                                <td></td>
-                                <td> <button id="${pedido.vehicle.id}" class="btn-table btn-xs estatisticas"><i class="fa fa-plus"></i></button></td>
+                                <td> <button id="${pedido.vehicle.id}" class="btn-table btn-sm estatisticas"><i class="fa fa-plus"></i></button></td>
                                 <td>
-                                  <button class="btn btn-success btn-xs aceitarVinculacao" id="${pedido.id}"><i class="fa fa-check"></i></button>
-                                  <button class="btn btn-danger btn-xs recusarVinculacao" id="${pedido.id}"><i class="fa fa-remove"></i></button>
+                                  <button class="btn btn-success btn-sm aceitarVinculacao" id="${pedido.id}"><i class="fa fa-check"></i></button>
+                                  <button class="btn btn-danger btn-sm recusarVinculacao" id="${pedido.id}"><i class="fa fa-remove"></i></button>
                                 </td>
                               </tr>`;
-
-                        //}
-                        //}
+                        }
                     }
                     txt += `</tbody>`;
                     readPedidosVinculacao.innerHTML = txt;
                 }
                 else {
-                    console.log("1");
+                    readPedidosVinculacao.innerHTML = "";
                 }
             }
             else {
-                console.log("2");
+                readPedidosVinculacao.innerHTML = "";
             }
         }
         else {
-            console.log("3");
+            readPedidosVinculacao.innerHTML = "";
         }
+
 
         //gerir clique no botao + para mostrar as estatisticas dos users
         const btnEstatisticas = document.getElementsByClassName("estatisticas");
@@ -395,12 +389,16 @@ window.onload = () => {
                     headers: {
                         'Authorization': auth
                     }
-                }); //falta url de todos os veiculos registados
+                });
                 if (response.status == 200) {
                     const veicules = await response.json();
                     for (const veicule of veicules) {
                         if (veicule.id == btnEstatisticas[i].getAttribute('id')) {
-                            const response1 = await fetch(`/${urlBaseSQL}/trip/read/datas/${veicule.id}`); //outro servidor- VITOR TRATA DISTO
+                            const response1 = await fetch(`/${urlBaseSQL}/trip/read/datas/${veicule.id}`, {
+                                headers: {
+                                    "Authorization": auth
+                                }
+                            });
                             if (response1.status == 200) {
                                 const viagens = await response1.json();
                                 let txt = `<table class="table table-striped table-advance table-hover centered">
@@ -459,9 +457,9 @@ window.onload = () => {
                                     title: 'Não existem estatísticas para apresentar!',
                                     type: 'warning',
                                     showCloseButton: false,
+                                    showConfirmButton: false,
                                     focusConfirm: false,
-                                    confirmButtonText: 'Sair',
-                                    confirmButtonColor: '#B47676'
+                                    timer: 3000
                                 });
                             }
                         }
@@ -474,45 +472,71 @@ window.onload = () => {
         const btnAceitar = document.getElementsByClassName("aceitarVinculacao");
 
         for (let i = 0; i < btnAceitar.length; i++) {
-            btnAceitar[i].addEventListener("click", () => {
-                swal({
-                    text: `Tem a certeza que deseja aceitar este pedido de vinculação?,
-                         'Se sim, insira no campo abaixo o código do contrato e contacte o cliente! Obrigado!`,
-                    html: `<form>
-                             <input type="text" id="contrato" class="swal2-input">
+            btnAceitar[i].addEventListener("click", async() => {
+                const response = await fetch(`${urlBaseSQL}/readAllBinds`, {
+                    headers: {
+                        'Authorization': auth
+                    }
+                });
+                if (response.status == 200) {
+                    swal({
+                        html: `
+                    <h4>Tem a certeza que deseja aceitar este pedido de vinculação?</h4>
+                    <h5>Se sim, insira no campo abaixo o código do contrato e contacte o cliente! Obrigado!</h5>
+                    <form>
+                             <input type="text" id="contrato" class="swal2-input" required>
                            </form>`,
-                    type: 'warning',
-                    showCancelButton: false,
-                    confirmButtonColor: '#B47676',
-                    cancelButtonColor: '#d33',
-                    cancelButtonText: 'Cancelar',
-                    confirmButtonText: 'Aceitar',
-                    showLoaderOnConfirm: true,
-                    preConfirm: () => {
-
-                        const contrato = document.getElementById("contrato").value;
-                        console.log(contrato)
-                        var data = {}
-                        data.contractCode = contrato;
-                        return fetch(`${urlBaseSQL}/validate/bind/${btnAceitar[i].getAttribute('id')}`, {
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': auth
-                            },
-                            method: 'PUT',
-                            body: JSON.stringify(data)
-                        }).then(response => {
-                            if (!response.ok) {
-                                throw new Error(response.statusText);
-                            }
-                            renderPedidosVinculacao();
-                            return response.json();
-                        }).catch(error => {
-                            swal.showValidationError(`Pedido Falhou: ${error}`);
-                        });
-                    },
-                    allowOutsideClick: () => !swal.isLoading()
-                })
+                        type: 'warning',
+                        showCancelButton: false,
+                        confirmButtonColor: '#B47676',
+                        cancelButtonColor: '#d33',
+                        cancelButtonText: 'Cancelar',
+                        confirmButtonText: 'Aceitar',
+                        showLoaderOnConfirm: true,
+                        preConfirm: () => {
+                            const contrato = document.getElementById("contrato").value;
+                            console.log(contrato)
+                            var data = {}
+                            data.contractCode = contrato;
+                            return fetch(`${urlBaseSQL}/validate/bind/${btnAceitar[i].getAttribute('id')}`, {
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': auth
+                                },
+                                method: 'PUT',
+                                body: JSON.stringify(data)
+                            })
+                        },
+                        allowOutsideClick: () => !swal.isLoading()
+                    }).then(response => {
+                        console.log(response);
+                        console.log(response.json());
+                        if (response.status !== 200) {
+                            console.log("22");
+                            throw new Error(response.statusText);
+                        }
+                        else {
+                            console.log("23");
+                            swal({
+                                title: 'Vinculação aceite com sucesso!',
+                                type: 'success',
+                                showCloseButton: false,
+                                showConfirmButton: false,
+                                focusConfirm: false,
+                                timer: 1500
+                            }).then(() => {
+                                renderEstatisticasClientes();
+                                renderPedidosVinculacao();
+                                numberClients();
+                                numberRequests();
+                                numberkms();
+                                numberVeicules();
+                            })
+                        }
+                    }).catch(error => {
+                        swal.showValidationError(`Pedido Falhou: ${error}`);
+                    });
+                }
             })
         }
 
@@ -529,12 +553,12 @@ window.onload = () => {
                     confirmButtonColor: '#B47676',
                     cancelButtonColor: '#d33',
                     cancelButtonText: 'Cancelar',
-                    confirmButtonText: 'Remover'
+                    confirmButtonText: 'Recusar'
                 }).then(async(result) => {
                     if (result.value) {
                         const pedidoId = btnRecusar[i].getAttribute('id');
                         try {
-                            const response = await fetch(`${urlBaseSQL}/unvalidate/bind/${pedidoId}`, { //FALTA A ROTA PARA RECUSAR VINCULAÇAO
+                            const response = await fetch(`${urlBaseSQL}/unvalidate/bind/${pedidoId}`, {
                                 headers: {
                                     'Authorization': auth
                                 },
@@ -544,9 +568,18 @@ window.onload = () => {
                                 swal({
                                     title: 'Pedido de vinculação recusado!',
                                     type: 'success',
-                                    confirmButtonColor: '#B47676'
-                                });
-                                renderPedidosVinculacao();
+                                    showCloseButton: false,
+                                    showConfirmButton: false,
+                                    focusConfirm: false,
+                                    timer: 1500
+                                }).then(() => {
+                                    renderEstatisticasClientes();
+                                    renderPedidosVinculacao();
+                                    numberClients();
+                                    numberRequests();
+                                    numberkms();
+                                    numberVeicules();
+                                })
                             }
 
                         }
@@ -554,7 +587,10 @@ window.onload = () => {
                             swal({
                                 type: 'error',
                                 title: 'Recusar vinculação',
-                                confirmButtonColor: '#B47676',
+                                showCloseButton: false,
+                                showConfirmButton: false,
+                                focusConfirm: false,
+                                timer: 3000,
                                 text: err
                             });
                         }
@@ -642,8 +678,8 @@ window.onload = () => {
                 title: 'Alteração efetuada com sucesso!',
                 type: 'success',
                 showCloseButton: false,
+                showConfirmButton: false,
                 focusConfirm: false,
-                confirmButtonColor: '#B47676',
                 timer: 1500
             }).then(window.location.reload());
         }
@@ -652,9 +688,9 @@ window.onload = () => {
                 title: 'Preencha corretamente os campos!',
                 type: 'warning',
                 showCloseButton: false,
+                showConfirmButton: false,
                 focusConfirm: false,
-                confirmButtonText: 'Sair',
-                confirmButtonColor: '#B47676'
+                timer: 3000
             })
         }
     })
@@ -688,8 +724,8 @@ window.onload = () => {
                     title: 'Alteração efetuada com sucesso!',
                     type: 'success',
                     showCloseButton: false,
+                    showConfirmButton: false,
                     focusConfirm: false,
-                    confirmButtonColor: '#B47676',
                     timer: 1500
                 }).then(logout());
             }
@@ -698,9 +734,9 @@ window.onload = () => {
                     title: 'Ocorreu um erro! Tente novamente!',
                     type: 'warning',
                     showCloseButton: false,
+                    showConfirmButton: false,
                     focusConfirm: false,
-                    confirmButtonText: 'Sair',
-                    confirmButtonColor: '#B47676'
+                    timer: 3000
                 })
             }
         }
@@ -709,16 +745,16 @@ window.onload = () => {
                 title: 'As passwords não correspondem!',
                 type: 'warning',
                 showCloseButton: false,
+                showConfirmButton: false,
                 focusConfirm: false,
-                confirmButtonText: 'Sair',
-                confirmButtonColor: '#B47676'
+                timer: 3000
             })
         }
     });
     //FIM MENU EDITAR PERFIL
     function logout() {
-        localStorage.removeItem("idUser");
-        localStorage.removeItem("Auth");
+        localStorage.removeItem("user");
+        localStorage.removeItem("auth");
         window.location.replace("./../index.html");
     }
     //LOGOUT
