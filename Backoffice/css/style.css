@@ -2163,8 +2163,8 @@ ul li {
 /*LOGIN CONFIGURATION PAGE*/
 
 .form-login {
-    max-width: 330px;
-    margin: 100px auto 0;
+    max-width: 500px;
+    margin: 230px auto 0;
     background: #fff;
     border-radius: 5px;
     -webkit-border-radius: 5px;
@@ -2174,12 +2174,11 @@ ul li {
     margin: 0;
     padding: 25px 20px;
     text-align: center;
-    background: #2e2e2e;
+    background: #B47676;
     border-radius: 5px 5px 0 0;
     -webkit-border-radius: 5px 5px 0 0;
     color: #fff;
     font-size: 20px;
-    text-transform: uppercase;
     font-weight: 300;
 }
 
@@ -2634,7 +2633,7 @@ a.mail-dropdown {
     padding: 20px;
 }
 
-.#B47676-compose {
+#B47676-compose {
     background: #b47676;
     padding: 12px 0;
     text-align: center;
@@ -2642,13 +2641,13 @@ a.mail-dropdown {
     color: #fff;
 }
 
-.#B47676-compose:hover,
-.#B47676-compose:focus {
+#B47676-compose:hover,
+#B47676-compose:focus {
     background: #1ca59e;
     color: #fff;
 }
 
-.#B47676-compose i {
+#B47676-compose i {
     padding: 5px;
 }
 
@@ -2868,12 +2867,12 @@ ul.inbox-pagination li {
 }
 
 .mail-option .chk-all,
-.mail-option .#B47676-group {
+.mail-option #B47676-group {
     margin-right: 5px;
 }
 
 .mail-option .chk-all,
-.mail-option .#B47676-group a.#B47676 {
+.mail-option #B47676-group a#B47676 {
     border: 1px solid #e7e7e7;
     padding: 5px 10px;
     display: inline-block;
@@ -2897,7 +2896,7 @@ ul.inbox-pagination li {
     margin-top: 0;
 }
 
-.mail-option .#B47676-group a.all {
+.mail-option #B47676-group a.all {
     padding: 0;
     border: none;
 }
@@ -2923,13 +2922,13 @@ ul.inbox-pagination li {
     box-shadow: none;
 }
 
-.#B47676-send,
-.#B47676-send:hover {
+#B47676-send,
+#B47676-send:hover {
     background: #00A8B3;
     color: #fff;
 }
 
-.#B47676-send:hover {
+#B47676-send:hover {
     background: #009da7;
 }
 
@@ -3421,33 +3420,33 @@ ul.chat-available-user li a:hover {
 }
 
 
-.#B47676-facebook {
+#B47676-facebook {
     color: #fff;
     background-color: #5193ea;
     border-color: #2775e2;
 }
 
-.#B47676-facebook:hover,
-.#B47676-facebook:focus,
-.#B47676-facebook:active,
-.#B47676-facebook.active,
-.open .dropdown-toggle.#B47676-facebook {
+#B47676-facebook:hover,
+#B47676-facebook:focus,
+#B47676-facebook:active,
+#B47676-facebook.active,
+.open .dropdown-toggle #B47676-facebook {
     color: #fff;
     background-color: #2775e2;
     border-color: #2775e2;
 }
 
-.#B47676-twitter {
+#B47676-twitter {
     color: #fff;
     background-color: #44ccfe;
     border-color: #2bb4e8;
 }
 
-.#B47676-twitter:hover,
-.#B47676-twitter:focus,
-.#B47676-twitter:active,
-.#B47676-twitter.active,
-.open .dropdown-toggle.#B47676-twitter {
+#B47676-twitter:hover,
+#B47676-twitter:focus,
+#B47676-twitter:active,
+#B47676-twitter.active,
+.open .dropdown-toggle #B47676-twitter {
     color: #fff;
     background-color: #2bb4e8;
     border-color: #2bb4e8;
@@ -3534,7 +3533,7 @@ ul.chat-available-user li a:hover {
     .panel-footer.revenue-foot {
         margin-bottom: -4px;
     }
-    ;
+    
 }
 
 

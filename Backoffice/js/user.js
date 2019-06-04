@@ -18,8 +18,8 @@ function initMap() {
     directionsService = new google.maps.DirectionsService;
     directionsDisplay = new google.maps.DirectionsRenderer;
     const map = new google.maps.Map(document.getElementById('map'), {
-        zoom: 6,
-        center: { lat: 41.4435606, lng: -8.336234200000002 }
+        zoom: 15,
+        center: new google.maps.LatLng(41.4435606, -8.336234200000002)
     });
     directionsDisplay.setMap(map);
 }
@@ -27,34 +27,39 @@ function initMap() {
 async function calculateAndDisplayRoute(directionsService, directionsDisplay, idVehicle) {
     let inicio, fim;
     let waypts = [];
-    const response = await fetch(`${urlBaseMongo}/api/data/${idVehicle}`, {
-        headers: {
-            "Authorization": auth
-        }
+    const response = await fetch(`${urlBaseMongo}/api/data/24` //`${urlBaseMongo}/api/data/${idVehicle}`
+        /*`${urlBaseSQL}/trip/read/datas/${idVehicle}`, {
+                headers: {
+                    "Authorization": auth
+                }
+            }*/
+    );
+    console.log(response);
+    let positions = await response.json();
+    positions = positions.data;
+    console.log(positions);
+    positions.sort(function(a, b) {
+        // Turn your strings into dates, and then subtract them
+        // to get a value that is either negative, positive, or zero.
+        return new Date(b.DataHora) - new Date(a.DataHora);
     });
-    const positions = await response.json();
-    for (const position of positions) {
-        if (position.start) {
-            inicio = {
-                lat: position.latitude,
-                lng: position.longitude
-            }
-            return;
+
+    for (let i = 0; i < positions.length; i++) {
+        const position = positions[i];
+        console.log(position);
+        if (position.Start) {
+            inicio = new google.maps.LatLng(position.Latitude, position.Longitude);
+            break;
         }
-        if (position.finish) {
-            fim = {
-                lat: position.latitude,
-                lng: position.longitude
-            }
-            return;
+        else if (position.Finish) {
+            fim = new google.maps.LatLng(position.Latitude, position.Longitude);
         }
-        waypts.push({
-            location: {
-                lat: position.latitude,
-                lng: position.longitude
-            },
-            stopover: true
-        });
+        else {
+            waypts.splice(0, 0, {
+                location: new google.maps.LatLng(position.Latitude, position.Longitude),
+                stopover: true
+            });
+        }
     }
     //waypts = [{ location: { lat: 41, lng: -8.336234200000002 }, stopover: true }, { location: { lat: 41.4435606, lng: -8 }, stopover: true }];
 
@@ -67,18 +72,6 @@ async function calculateAndDisplayRoute(directionsService, directionsDisplay, id
     }, function(response, status) {
         if (status === 'OK') {
             directionsDisplay.setDirections(response);
-            var route = response.routes[0];
-            var summaryPanel = document.getElementById('directions-panel');
-            summaryPanel.innerHTML = '';
-            // For each route, display summary information.
-            for (var i = 0; i < route.legs.length; i++) {
-                var routeSegment = i + 1;
-                summaryPanel.innerHTML += '<b>Route Segment: ' + routeSegment +
-                    '</b><br>';
-                summaryPanel.innerHTML += route.legs[i].start_address + ' to ';
-                summaryPanel.innerHTML += route.legs[i].end_address + '<br>';
-                summaryPanel.innerHTML += route.legs[i].distance.text + '<br><br>';
-            }
         }
         else {
             window.alert('Directions request failed due to ' + status);
@@ -87,6 +80,7 @@ async function calculateAndDisplayRoute(directionsService, directionsDisplay, id
 }
 
 window.onload = () => {
+
 
     document.getElementById("seeStatistics").style.display = "none";
 
@@ -111,7 +105,6 @@ window.onload = () => {
     const formAddVeicules = document.getElementById('formAddVeicules');
 
 
-    //FALTA ESTAS ESTATISTICASSSSSS  - CONFIRMAR CODIGO DEPOIS
     //numero veiculos
     async function numberVeicules() {
         let numero = 0;
@@ -122,7 +115,6 @@ window.onload = () => {
         })
         if (response.status == 200) {
             const veicules = await response.json();
-            //numero = veicules[0].numberVeicules; //funcao parte backend que conta o numero de veiculos  //falta
             numero = veicules.length;
         }
 
@@ -131,36 +123,48 @@ window.onload = () => {
     numberVeicules();
 
     //numero total kms percorridos
-    const numberkmsPerc = async() => {
-        const response = await fetch(`${urlBaseSQL}/statistics/kms`, {
+    async function numberkmsPerc() {
+        let kms = 0;
+        const response = await fetch(`${urlBaseSQL}/read/user/vehicles/${idUser}`, {
             headers: {
                 "Authorization": auth
             }
-        }); //falta URL
-        let numero = 0;
+        })
         if (response.status == 200) {
-            const kms = await response.json();
-            numero = kms[0].numberkmsPerc;
+            const veicules = await response.json();
+            for (const veicule of veicules) {
+                const response2 = await fetch(`${urlBaseSQL}/trip/read/${veicule.id}`, {
+                    headers: {
+                        'Authorization': auth
+                    }
+                });
+                if (response2.status == 200) {
+                    const trips = await response2.json();
+                    for (const trip of trips) {
+                        console.log(typeof trip.distance);
+                        kms += (trip.distance / 1000);
+                    }
+                }
+            }
         }
-        numeroKmsPerc.innerHTML = numero;
+        numeroKmsPerc.innerHTML = parseFloat(Math.round(kms * 100) / 100);
     }
+    numberkmsPerc();
 
     //numero de pontos acumulados
-    const numberPoints = async() => {
-        const response = await fetch(`${urlBaseSQL}/statistics/points`, {
+    async function numberPoints() {
+        let numero = 0;
+        /*const response = await fetch(`${urlBaseSQL}/statistics/points`, {
             headers: {
                 "Authorization": auth
             }
         }); //url falta
-        let numero = 0;
         if (response.status == 200) {
             const points = await response.json();
             numero = points[0].numberPoints;
-        }
+        }*/
         numeroPontosAc.innerHTML = numero;
     }
-    numberVeicules();
-    numberkmsPerc();
     numberPoints();
 
     //DADOS UTILIZADOR
@@ -225,9 +229,9 @@ window.onload = () => {
                 title: 'Ocorreu um erro ao carregar os seus dados. Tente novamente!',
                 type: 'warning',
                 showCloseButton: false,
-                focusConfirm: true,
-                confirmButtonText: 'Sair',
-                confirmButtonColor: '#B47676'
+                showConfirmButton: false,
+                focusConfirm: false,
+                timer: 3000
             }).then(logout());
         }
     }
@@ -241,7 +245,7 @@ window.onload = () => {
             headers: {
                 'Authorization': auth
             }
-        }) //falta url de todos os veiculos registados
+        })
         if (response.status == 200) {
             const veicules = await response.json();
             let txt = `<thead>
@@ -262,14 +266,14 @@ window.onload = () => {
             });
             if (response1.status == 200) {
                 const binds = await response1.json();
-                for (const veicule of veicules) { //os kms do veiculo  e os pontos nao tenho a certeza se é assim
+                for (const veicule of veicules) {
                     let vinculado = false;
                     let pendente = false;
                     console.log(veicule)
                     txt += `<tr>
                                 <td>${veicule.plate}</td>
                                 <td>${veicule.brand}</td>`
-                    const response2 = await fetch(`${urlBaseSQL}/trip/read/datas/${veicule.id}`, {
+                    const response2 = await fetch(`${urlBaseSQL}/trip/read/${veicule.id}`, {
                         headers: {
                             'Authorization': auth
                         }
@@ -278,31 +282,33 @@ window.onload = () => {
                         let kms = 0;
                         const trips = await response2.json();
                         for (const trip of trips) {
-                            kms += trip.distance;
+                            kms += (trip.distance / 1000);
                         }
-                        txt += `<td>${kms}</td>`;
+                        txt += `<td>${parseFloat(Math.round(kms * 100) / 100)}</td>`;
                     }
                     else {
                         txt += `<td> - </td>`
                     }
                     for (const bind of binds) {
-                        if ((bind.vehicle.id == veicule.id)) {
-                            pendente = true;
-                            if (bind.enabled == 1) {
+                        if (bind.vehicle.id == veicule.id) {
+                            if (bind.request == 1) {
+                                pendente = true;
+                            }
+                            if (bind.accepted == 1) {
                                 vinculado = true;
                             }
                         }
                     }
                     if (vinculado) {
-                        txt += `<td> <span class="label label-success label-mini"><i class="fa fa-check"></i></span></td>`;
+                        txt += `<td> <button class="btn btn-success btn-sm"><i class="fa fa-check"></i></btn></td>`;
                     }
                     else if (pendente) {
-                        txt += `<td> <span class="label label-warning label-mini"><i class="fa fa-clock-o"></i></span></td>`;
+                        txt += `<td> <button class="btn btn-warning btn-sm"><i class="fa fa-clock-o"></i></button></td>`;
                     }
                     else {
-                        txt += `<td> <span class="label label-warning label-mini"><i class="fa fa-remove"></i></span></td>`;
+                        txt += `<td> <button class="btn btn-danger btn-sm"><i class="fa fa-remove"></i></button></td>`;
                     }
-                    txt += `<td> <button id="${veicule.id}" class="btn-table btn-xs estatisticas"><i class="fa fa-plus"></i></button></td>
+                    txt += `<td> <button id="${veicule.id}" class="btn-table btn-sm estatisticas"><i class="fa fa-plus"></i></button></td>
                               </tr>`;
                 }
             }
@@ -337,9 +343,9 @@ window.onload = () => {
                     title: 'Não existem veículos registados!',
                     type: 'warning',
                     showCloseButton: false,
+                    showConfirmButton: false,
                     focusConfirm: false,
-                    confirmButtonText: 'Sair',
-                    confirmButtonColor: '#B47676'
+                    timer: 3000
                 })
             }
             txt += `</tbody>`;
@@ -353,79 +359,59 @@ window.onload = () => {
                 btnEstatisticas[i].addEventListener("click", async() => {
                     for (const veicule of veicules) {
                         if (veicule.id == btnEstatisticas[i].getAttribute('id')) {
-                            const response2 = await fetch(`${urlBaseSQL}/trip/read/datas/${veicule.id}`, {
-                                headers: {
-                                    "Authorization": auth
-                                }
-                            }); //outro servidor- VITOR TRATA DISTO
-                            if (response2.status == 200) {
+                            const response = await fetch(`${urlBaseMongo}/api/data/${veicule.id}` /*`${urlBaseMongo}/api/data/${veicule.id}`*/ );
+                            if (response.ok) {
                                 calculateAndDisplayRoute(directionsService, directionsDisplay, veicule.id);
-                                const viagens = await response2.json();
-                                let i = 0;
-                                let txt = "",
-                                    txt1 = `<table class="table table-striped table-advance table-hover centered">
-                               <thead>
-                                 <tr>
-                                   <th class="centered"><i class="fa fa-calendar"></i> Data</th>
-                                   <th class="centered"><i class="fa fa-clock-o"></i> Hora</th>
-                                   <th class="centered"><i class="fa fa-bookmark"></i> Origem</th>
-                                   <th class="centered"><i class=" fa fa-bookmark"></i> Destino</th>
-                                   <th class="centered"><i class=" fa fa-hourglass-1"></i> Tempo</th>
-                                   <th class="centered"><i class=" fa fa-map"></i> Distância</th>
-                                   <th class="centered"><i class=" fa fa-car"></i> Velocidade média</th>
-                                   <th class="centered"><i class=" fa fa-bolt"></i> Excesso velocidade</th>
-                                 </tr>
-                               </thead>
-                               <tbody>`;
-                                for (const viagem of viagens) {
-                                    if (i == 0) {
-                                        i++;
-                                        txt += `<h5>Data (final): ${viagem.date}</h5>
-                             <h5>Hora: ${viagem.hour}</h5>
-                             <h5>Distância: ${viagem.distance} km</h5>
-                             <h5>Velocidade média: ${viagem.velocity} km/h</h5>
-                             <h5>Excesso de velocidade: ${viagem.excessVelocity} % do tempo</h5>`;
+                                let dados = await response.json();
+                                dados = dados.data;
+                                dados.sort(function(a, b) {
+                                    // Turn your strings into dates, and then subtract them
+                                    // to get a value that is either negative, positive, or zero.
+                                    return new Date(a.DataHora) - new Date(b.DataHora);
+                                });
+                                console.log(dados);
+                                let velocityAverage = 0;
+                                let distance = 0;
+                                let timeAboveLimit = 0;
+                                let dateStart = "";
+                                let dateFinish = "";
+                                let dateEnd = "";
+                                let hourEnd = "";
+                                const R = 6371;
+                                for (let i = 0; i < dados.length; i++) {
+                                    if (dados[i].Start) {
+                                        dateStart = new Date(dados[i].DataHora);
+                                    }
+                                    else if (dados[i].Finish) {
+                                        dateFinish = new Date(dados[i].DataHora);
+                                        dateEnd = dateFinish.getDate() + "/" + (dateFinish.getMonth() + 1) + "/" + dateFinish.getFullYear();
+                                        if (dateFinish.getMinutes() < 10) {
+                                            hourEnd = dateFinish.getHours() + ":0" + dateFinish.getMinutes();
+                                        }
+                                        else {
+                                            hourEnd = dateFinish.getHours() + ":" + dateFinish.getMinutes();
+                                        }
+                                        velocityAverage = velocityAverage / (dados.length - 2);
+                                        timeAboveLimit = timeAboveLimit / (dateFinish - dateStart);
                                     }
                                     else {
-                                        let origin;
-                                        const geocoder = new google.maps.Geocoder;
-                                        geocoder.geocode({ 'location': { lat: viagem.latitudeStart, lng: viagem.longitudeStart } }, function(results, status) {
-                                            if (status === "OK") {
-                                                if (results[0]) {
-                                                    origin = results[0].formatted_address;
-                                                }
-                                            }
-                                        })
-
-                                        let destiny;
-                                        geocoder.geocode({ 'location': { lat: viagem.latitudeFinish, lng: viagem.longitudeFinish } }, function(results, status) {
-                                            if (status === "OK") {
-                                                if (results[0]) {
-                                                    destiny = results[0].formatted_address;
-                                                }
-                                            }
-                                        })
-                                        i++;
-                                        const date = new Date(viagem.startDate);
-                                        const dateStart = date.getDate() + "/" + (date.getMonth() + 1) + "/" + date.getFullYear();
-                                        const hour = date.getHours() + ":" + date.getMinutes();
-                                        txt1 += `<tr>
-                                   <td>${dateStart}</td>
-                                   <td>${hour}</td>
-                                   <td>${origin}</td>
-                                   <td>${destiny}</td>
-                                   <td>${viagem.tripTime} min</td>
-                                   <td>${viagem.distance} km</td>
-                                   <td>${viagem.velocityAverage} km/h</td>
-                                   <td>${viagem.aboveVelocityLimitTime} % do tempo</td>
-                                 </tr>`;
-
+                                        let dLat = (dados[i + 1].Latitude - dados[i].Latitude) * Math.PI / 180;
+                                        let dLon = (dados[i + 1].Longitude - dados[i].Longitude) * Math.PI / 180;
+                                        let a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(dados[i].Latitude * Math.PI / 180) * Math.cos(dados[i + 1].Latitude * Math.PI / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+                                        let c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                                        distance += R * c;
+                                        velocityAverage += dados[i].Velocidade;
+                                        if (dados[i].Velocidade > dados[i].LimiteVelocidade) {
+                                            timeAboveLimit += (new Date(dados[i + 1].DataHora)) - (new Date(dados[i].DataHora));
+                                        }
                                     }
                                 }
-                                readUltimaViagem.innerHTML = txt;
-                                if (i > 1) {
-                                    readViagensAnteriores = txt1 + "</tbody></table>";
-                                }
+                                readUltimaViagem.innerHTML = `<h5>Data (final): ${dateEnd}</h5>
+                             <h5>Hora: ${hourEnd}</h5>
+                             <h5>Distância: ${parseFloat(Math.round(distance * 100) / 100)} km</h5>
+                             <h5>Velocidade média: ${parseFloat(Math.round(velocityAverage * 100) / 100)} km/h</h5>
+                             <h5>Excesso de velocidade: ${Math.round(timeAboveLimit * 100)} % do tempo</h5>`;
+
                                 document.getElementById("seeStatistics").style.display = "block";
                             }
                             else {
@@ -433,9 +419,9 @@ window.onload = () => {
                                     title: 'Não existem estatísticas para apresentar. Escolha um veículo e inicie a viagem!',
                                     type: 'warning',
                                     showCloseButton: false,
+                                    showConfirmButton: false,
                                     focusConfirm: false,
-                                    confirmButtonText: 'Sair',
-                                    confirmButtonColor: '#B47676'
+                                    timer: 3000
                                 })
                             }
                         }
@@ -458,45 +444,74 @@ window.onload = () => {
         data.plate = document.getElementById("plate").value;
         data.brand = document.getElementById("brand").value;
 
-        const response = await fetch(`${urlBaseSQL}/add/vehicle/${idUser}`, { //NAO TENHO A CERTEZA SE É ESTE O URL
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': auth
-            },
-            method: 'POST',
-            body: JSON.stringify(data)
-        });
+        if (isMatriculaValida(data.plate)) {
+            const response = await fetch(`${urlBaseSQL}/add/vehicle/${idUser}`, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': auth
+                },
+                method: 'POST',
+                body: JSON.stringify(data)
+            });
 
-        if (response.status == 200) {
-            swal({
-                title: 'Veículo inserido com sucesso!',
-                type: 'success',
-                showCloseButton: false,
-                focusConfirm: false,
-                confirmButtonColor: '#B47676',
-                timer: 1500
-            })
-            renderVeicules();
-            renderVeiculosRegistados();
+            if (response.status == 200) {
+                swal({
+                    title: 'Veículo inserido com sucesso!',
+                    type: 'success',
+                    showCloseButton: false,
+                    showConfirmButton: false,
+                    focusConfirm: false,
+                    timer: 1500
+                }).then(() => {
+                    renderVeicules();
+                    renderVeiculosRegistados();
+                    numberPoints();
+                    numberVeicules();
+                    numberkmsPerc();
+                    formAddVeicules.reset();
+                });
+            }
+            else {
+                swal({
+                    title: 'Não foi possível inserir o seu veículo!',
+                    type: 'warning',
+                    showCloseButton: false,
+                    showConfirmButton: false,
+                    focusConfirm: false,
+                    timer: 3000
+                }).then(() => {
+                    renderVeicules();
+                    renderVeiculosRegistados();
+                    numberkmsPerc();
+                    numberVeicules();
+                    numberPoints();
+                    formAddVeicules.reset();
+                });
+            }
         }
         else {
             swal({
-                title: 'Erro! Não foi possível inserir o seu veículo!',
+                title: 'Insira uma matricula no formato "AA-00-00","00-AA-00" ou "00-00-AA"!',
                 type: 'warning',
                 showCloseButton: false,
+                showConfirmButton: true,
                 focusConfirm: false,
                 confirmButtonText: 'Sair',
                 confirmButtonColor: '#B47676'
-            })
+            }).then(() => {
+                renderVeicules();
+                renderVeiculosRegistados();
+                numberkmsPerc();
+                numberVeicules();
+                numberPoints();
+                formAddVeicules.reset();
+            });
         }
-        // }
-        renderVeicules();
-        renderVeiculosRegistados();
     });
 
 
     //tabela dos veiculos
-    async function renderVeicules() {
+    const renderVeicules = async() => {
 
         const response = await fetch(`${urlBaseSQL}/read/user/vehicles/${idUser}`, {
             headers: {
@@ -530,21 +545,23 @@ window.onload = () => {
                                 <td>${veiculeUser.plate}</td>
                                 <td>${veiculeUser.brand}</td>`;
                     for (const bind of binds) {
-                        if ((bind.vehicle.id == veiculeUser.id)) {
-                            pendente = true;
-                            if (bind.enabled == 1) {
+                        if (bind.vehicle.id == veiculeUser.id) {
+                            if (bind.request == 1) {
+                                pendente = true;
+                            }
+                            if (bind.accepted == 1) {
                                 vinculado = true;
                             }
                         }
                     }
                     if (vinculado) {
-                        txt += `<td> <span class="label label-success label-mini"><i class="fa fa-check fa-1x"></i> Vinculado</span></td>`;
+                        txt += `<td> <button class="btn btn-success btn-sm">Vinculado</button></td>`;
                     }
                     else if (pendente) {
-                        txt += `<td> <span class="label label-warning label-mini"><i class="fa fa-clock-o fa-1x"></i> Pendente</span></td>`
+                        txt += `<td> <button class="btn btn-warning btn-sm">Pendente </button></td>`
                     }
                     else {
-                        txt += `<td> <button id="${veiculeUser.plate}" class="btn btn-warning btn-sm vincular"><i class="fa fa-plus"> Vincular</i></button></td>`;
+                        txt += `<td> <button id="${veiculeUser.plate}" class="btn-table btn-sm vincular">Vincular </button></td>`;
                     }
                     txt += `<td> <button id="${veiculeUser.id}" class="btn-table btn-sm iniciar">Iniciar</button></td>
                         <td> <button id="${veiculeUser.plate}" class="btn btn-danger btn-sm eliminar"><i class="fa fa-trash-o fa-1x"></i></button></td>
@@ -556,7 +573,7 @@ window.onload = () => {
                     txt += `<tr>
                             <td>${veiculeUser.plate}</td>
                             <td>${veiculeUser.brand}</td>   
-                            <td> <button id="${veiculeUser.plate}" class="btn btn-warning btn-sm vincular"><i class=" fa fa-plus"></i> Vincular</i></button></td>   
+                            <td> <button id="${veiculeUser.plate}" class="btn btn-warning btn-sm vincular">Vincular</button></td>   
                             <td> <button id="${veiculeUser.id}" class="btn-table btn-sm iniciar">Iniciar</button></td>
                             <td> <button id="${veiculeUser.plate}" class="btn btn-danger btn-sm eliminar"><i class="fa fa-trash-o fa-1x"></i></button></td>
                         </tr>`;
@@ -567,16 +584,16 @@ window.onload = () => {
                     title: 'Erro! Não existem veículos!',
                     type: 'warning',
                     showCloseButton: false,
+                    showConfirmButton: false,
                     focusConfirm: false,
-                    confirmButtonText: 'Sair',
-                    confirmButtonColor: '#B47676'
+                    timer: 1500
                 })
             }
             txt += `</tbody>`;
             readVeiculos.innerHTML = txt;
 
-            //gerir botao para iniciar viagem   --  ao carregar no botao abre um swal a dizer que estao a ser recolhidos os dados e um botao de terminar ..... falta maneira de recolher esses dados 
-            //ATENÇÃO VER ESTA PARTE MELHOR  INICIAR VIAGEM
+            //gerir botao para iniciar viagem   --  ao carregar no botao abre um swal a dizer que estao a ser recolhidos os dados e um botao de terminar 
+
             const btnIniciar = document.getElementsByClassName("iniciar");
 
             for (let i = 0; i < btnIniciar.length; i++) {
@@ -621,11 +638,11 @@ window.onload = () => {
                                             magnitudes[0] = 0;
                                             velocidadeAnterior = 0;
                                             let data = {};
-                                            data.idVehicle = btnIniciar[i].getAttribute('id');
-                                            data.dateTime = (new Date()).toString();
+                                            data.idVehicle = "100";
                                             data.speed = "0";
                                             data.start = start.toString();
                                             data.finish = finish.toString();
+                                            data.dateTime = (new Date()).toString();
                                             data.latitude = latitude.toString();
                                             data.longitude = longitude.toString();
                                             data.speedLimit = "0";
@@ -640,17 +657,16 @@ window.onload = () => {
                                         const tempo = (dataAtual - dataParcial) / 1000;
                                         dataParcial = dataAtual;
                                         velocidadeAnterior = ((magnitudes[0] + magnitudes[1]) * (tempo / 2)) + velocidadeAnterior;
-                                        let speedLimit = velocidadeAnterior;
                                         console.log("2");
                                         let data = {};
                                         data.idVehicle = btnIniciar[i].getAttribute('id');
-                                        data.dateTime = dataAtual.toString();
                                         data.speed = velocidadeAnterior.toString();
                                         data.start = start.toString();
                                         data.finish = finish.toString();
+                                        data.dateTime = dataAtual.toString();
                                         data.latitude = latitude.toString();
                                         data.longitude = longitude.toString();
-                                        data.speedLimit = speedLimit.toString();
+                                        data.speedLimit = velocidadeAnterior.toString();
                                         datas.push(JSON.stringify(data));
                                         sleep(1000);
                                     });
@@ -667,14 +683,16 @@ window.onload = () => {
                                 finish = true;
                                 //para acelerometro
                                 navigator.geolocation.getCurrentPosition((position) => {
+                                    latitude = position.coords.latitude;
+                                    longitude = position.coords.longitude;
                                     let data = {};
                                     data.idVehicle = btnIniciar[i].getAttribute('id');
-                                    data.dateTime = (new Date()).toString();
                                     data.speed = "0";
                                     data.start = start.toString();
                                     data.finish = finish.toString();
-                                    data.latitude = position.coords.latitude.toString();
-                                    data.longitude = position.coords.longitude.toString();
+                                    data.dateTime = (new Date()).toString();
+                                    data.latitude = latitude.toString();
+                                    data.longitude = longitude.toString();
                                     data.speedLimit = "0";
                                     datas.push(JSON.stringify(data));
                                     let err = false;
@@ -687,7 +705,8 @@ window.onload = () => {
                                             console.log(response);
                                             if (!response.ok) {
                                                 throw new Error("");
-                                            } else {
+                                            }
+                                            else {
                                                 return response.json();
                                             }
                                         }).then(result => {
@@ -699,8 +718,10 @@ window.onload = () => {
                                             }
                                             swal({
                                                 title: '<strong>Ocorreu um erro na leitura dos seus dados!</strong>',
-                                                confirmButtonText: 'Sair',
-                                                confirmButtonColor: '#B47676'
+                                                showCloseButton: false,
+                                                showConfirmButton: false,
+                                                focusConfirm: false,
+                                                timer: 3000
                                             });
                                         });
                                     }
@@ -712,6 +733,9 @@ window.onload = () => {
                                                 });
                                             }
                                         }
+                                    }
+                                    else {
+                                        console.log("OK");
                                     }
                                 });
                             })
@@ -749,22 +773,31 @@ window.onload = () => {
 
                         const binds = await response1.json();
                         const veicules = await response2.json();
-
                         for (const veicule of veicules) {
+                            if (veicule.plate == btnEliminar[i].getAttribute("id")) {
+                                let vinculado = false;
+                                let pendente = false;
 
-                            let vinculado = false;
-
-                            if (binds.length != 0) {
-                                for (const bind of binds) {
-
-                                    if (bind.vehicle.id == veicule.id && bind.enabled == 1) {
-                                        vinculado = true;
+                                if (binds.length != 0) {
+                                    for (const bind of binds) {
+                                        console.log(bind);
+                                        if (bind.vehicle.id == veicule.id) {
+                                            if (bind.request == 1) {
+                                                pendente = true;
+                                            }
+                                            if (bind.accepted == 1) {
+                                                vinculado = true;
+                                            }
+                                        }
                                     }
                                     if (vinculado) {
                                         swal({
                                             title: 'Contacte o seu mediador para desvincular o seu veículo! Obrigado!',
-                                            confirmButtonColor: '#B47676',
-                                            type: 'warning'
+                                            type: 'warning',
+                                            showCloseButton: false,
+                                            showConfirmButton: false,
+                                            focusConfirm: false,
+                                            timer: 3000
                                         })
                                     }
                                     else {
@@ -793,74 +826,97 @@ window.onload = () => {
                                                             title: 'Veículo removido com sucesso!',
                                                             type: 'success',
                                                             showCloseButton: false,
+                                                            showConfirmButton: false,
                                                             focusConfirm: false,
-                                                            confirmButtonColor: '#B47676',
                                                             timer: 1500
+                                                        }).then(() => {
+                                                            renderVeicules();
+                                                            renderVeiculosRegistados();
+                                                            numberPoints();
+                                                            numberVeicules();
+                                                            numberkmsPerc();
                                                         });
-                                                        renderVeicules();
-                                                        renderVeiculosRegistados();
                                                     }
                                                 }
                                                 catch (error) {
                                                     swal({
                                                         type: 'error',
                                                         title: 'Erro',
-                                                        confirmButtonColor: '#B47676',
+                                                        showCloseButton: false,
+                                                        showConfirmButton: false,
+                                                        focusConfirm: false,
+                                                        timer: 3000,
                                                         text: error
+                                                    }).then(() => {
+                                                        renderVeicules();
+                                                        renderVeiculosRegistados();
+                                                        numberPoints();
+                                                        numberVeicules();
+                                                        numberkmsPerc();
                                                     });
                                                 }
-                                                renderVeicules();
-                                                renderVeiculosRegistados();
                                             }
                                         });
                                     }
                                 }
-                            }
-                            else {
-                                swal({
-                                    title: 'Tem a certeza que deseja remover este veículo?',
-                                    text: "Não será possível reverter a remoção!",
-                                    type: 'warning',
-                                    showCancelButton: true,
-                                    confirmButtonColor: '#B47676',
-                                    cancelButtonColor: '#d33',
-                                    cancelButtonText: 'Cancelar',
-                                    confirmButtonText: 'Remover'
-                                }).then(async(result) => {
-                                    if (result.value) {
-                                        const plate = btnEliminar[i].getAttribute("id");
-                                        try {
-                                            const response = await fetch(`${urlBaseSQL}/delete/vehicle/${veicule.id}`, {
-                                                headers: {
-                                                    'Authorization': auth
-                                                },
-                                                method: "DELETE"
-                                            });
-                                            if (response.status == 200) {
-                                                swal({
-                                                    title: 'Veículo Removido com Sucesso!',
-                                                    type: 'success',
-                                                    showCloseButton: false,
-                                                    focusConfirm: false,
-                                                    confirmButtonColor: '#B47676',
-                                                    timer: 1500
+                                else {
+                                    swal({
+                                        title: 'Tem a certeza que deseja remover este veículo?',
+                                        text: "Não será possível reverter a remoção!",
+                                        type: 'warning',
+                                        showCancelButton: true,
+                                        confirmButtonColor: '#B47676',
+                                        cancelButtonColor: '#d33',
+                                        cancelButtonText: 'Cancelar',
+                                        confirmButtonText: 'Remover'
+                                    }).then(async(result) => {
+                                        if (result.value) {
+                                            const plate = btnEliminar[i].getAttribute("id");
+                                            try {
+                                                const response = await fetch(`${urlBaseSQL}/delete/vehicle/${veicule.id}`, {
+                                                    headers: {
+                                                        'Authorization': auth
+                                                    },
+                                                    method: "DELETE"
                                                 });
-                                                renderVeicules();
-                                                renderVeiculosRegistados();
+                                                if (response.status == 200) {
+                                                    swal({
+                                                        title: 'Veículo Removido com Sucesso!',
+                                                        type: 'success',
+                                                        showCloseButton: false,
+                                                        showConfirmButton: false,
+                                                        focusConfirm: false,
+                                                        timer: 1500
+                                                    }).then(() => {
+                                                        renderVeicules();
+                                                        renderVeiculosRegistados();
+                                                        numberPoints();
+                                                        numberVeicules();
+                                                        numberkmsPerc();
+
+                                                    });
+                                                }
+                                            }
+                                            catch (error) {
+                                                swal({
+                                                    type: 'error',
+                                                    title: 'Erro',
+                                                    text: error,
+                                                    showCloseButton: false,
+                                                    showConfirmButton: false,
+                                                    focusConfirm: false,
+                                                    timer: 1500
+                                                }).then(() => {
+                                                    renderVeicules();
+                                                    renderVeiculosRegistados();
+                                                    numberPoints();
+                                                    numberVeicules();
+                                                    numberkmsPerc();
+                                                });
                                             }
                                         }
-                                        catch (error) {
-                                            swal({
-                                                type: 'error',
-                                                title: 'Erro',
-                                                text: error,
-                                                confirmButtonColor: '#B47676'
-                                            });
-                                        }
-                                        renderVeicules();
-                                        renderVeiculosRegistados();
-                                    }
-                                });
+                                    });
+                                }
                             }
                         }
                     }
@@ -891,32 +947,35 @@ window.onload = () => {
                                     txt += `<option id='${broker.nif}' value="${broker.firstname}">${broker.firstname} ${broker.lastname}</option>`;
                                 }
                                 swal({
-                                    title: "Vincular Veículo",
+                                    title: 'Vincular Veículo',
                                     html: `<div><table class="table table-striped table-advance table-hover centered">
-                                    <thead>
-                              <tr>
-                                <th class="centered"><i class="fa fa-user"></i> Nome</th>
-                                <th class="centered"><i class="fa fa-home"></i> Código Postal</th>
-                                <th class="centered"><i class="fa fa-phone"></i> Contacto</th>
-                              </tr>
-                            </thead>
-                            <tbody>${txt1}
-                            </tbody></table></div>
-                                    <div><form>
+                                             <thead>
+                                              <tr>
+                                                <th class="centered"><i class="fa fa-user"></i> Nome</th>
+                                                <th class="centered"><i class="fa fa-home"></i> Código Postal</th>
+                                                <th class="centered"><i class="fa fa-phone"></i> Contacto</th>
+                                              </tr>
+                                            </thead>
+                                            <tbody>${txt1}
+                                            </tbody>
+                                            </table>
+                                            </div>
+                                         <div>
+                                        <form>
                                             <select name="selectType" id="selectMediador" class="swal2-input" required>
                                                 <option value="" selected disabled hidden>Selecione um mediador</option>
                                                 ${txt}
                                             </select></form></div>`,
+                                    width: '800px',
                                     showCancelButton: false,
                                     confirmButtonText: "Vincular",
                                     confirmButtonColor: '#B47676',
-                                    cancelButtonText: "Cancelar",
                                     showLoaderOnConfirm: true,
                                     preConfirm: () => {
                                         const selectMediador = document.getElementById("selectMediador");
                                         const mediador = selectMediador.options[selectMediador.selectedIndex].getAttribute("id");
                                         let data = {};
-                                        data.id = veiculeUser.id;
+                                        data.plate = veiculeUser.plate;
                                         return fetch(`${urlBaseSQL}/request/bind/${mediador}/${idUser}`, {
                                             headers: {
                                                 "Content-Type": "application/json",
@@ -931,20 +990,26 @@ window.onload = () => {
                                     if (result.value) {
                                         if (result.value.ok) {
                                             swal({
-                                                title: 'Pedido de vinculação efetuada com sucesso!',
+                                                title: 'Pedido de vinculação efetuado com sucesso!',
                                                 type: 'success',
                                                 showCloseButton: false,
+                                                showConfirmButton: false,
                                                 focusConfirm: false,
-                                                confirmButtonColor: '#B47676',
                                                 timer: 1500
-                                            })
-                                            renderVeicules();
-                                            renderVeiculosRegistados();
+                                            }).then(() => {
+                                                renderVeicules();
+                                                renderVeiculosRegistados();
+                                                numberPoints();
+                                                numberVeicules();
+                                                numberkmsPerc();
+                                            });
                                         }
                                         else {
                                             swal({
-                                                title: `Occoreu um erro ao tentar vincular o veiculo. Tente mais tarde!`,
-                                                confirmButtonColor: '#B47676',
+                                                title: `Ocorreu um erro ao tentar vincular o veículo. Tente mais tarde!`,
+                                                showCloseButton: false,
+                                                showConfirmButton: false,
+                                                focusConfirm: false,
                                                 timer: 1500
                                             })
                                         }
@@ -1036,8 +1101,8 @@ window.onload = () => {
                 title: 'Alteração efetuada com sucesso!',
                 type: 'success',
                 showCloseButton: false,
+                showConfirmButton: false,
                 focusConfirm: false,
-                confirmButtonColor: '#B47676',
                 timer: 1500
             }).then(result => {
                 if (result.value) {
@@ -1050,9 +1115,9 @@ window.onload = () => {
                 title: 'Preencha corretamente os campos!',
                 type: 'warning',
                 showCloseButton: false,
+                showConfirmButton: false,
                 focusConfirm: false,
-                confirmButtonText: 'Sair',
-                confirmButtonColor: '#B47676'
+                timer: 3000
             })
         }
     })
@@ -1086,23 +1151,19 @@ window.onload = () => {
                     title: 'Alteração efetuada com sucesso!',
                     type: 'success',
                     showCloseButton: false,
+                    showConfirmButton: false,
                     focusConfirm: false,
-                    confirmButtonColor: '#B47676',
                     timer: 1500
-                }).then(result => {
-                    if (result.value) {
-                        logout();
-                    }
-                })
+                }).then(logout());
             }
             else {
                 swal({
                     title: 'Ocorreu um erro! Tente novamente!',
                     type: 'warning',
                     showCloseButton: false,
+                    showConfirmButton: false,
                     focusConfirm: false,
-                    confirmButtonText: 'Sair',
-                    confirmButtonColor: '#B47676'
+                    timer: 3000
                 })
             }
         }
@@ -1111,18 +1172,17 @@ window.onload = () => {
                 title: 'As passwords não correspondem!',
                 type: 'warning',
                 showCloseButton: false,
+                showConfirmButton: false,
                 focusConfirm: false,
-                confirmButtonText: 'Sair',
-                confirmButtonColor: '#B47676'
+                timer: 3000
             })
         }
     });
 
-
     //LOGOUT
-    async function logout() {
-        localStorage.removeItem("idUser");
-        localStorage.removeItem("auth")
+    function logout() {
+        localStorage.removeItem("user");
+        localStorage.removeItem("auth");
         window.location.replace("./../index.html");
     }
 
@@ -1132,4 +1192,46 @@ window.onload = () => {
     });
 
 
+    //verificar Matricula
+    function isMatriculaValida(matricula) {
+        //valida o tamanho e posiçao do carater "-"~
+        if (matricula.length !== 8 || matricula.charAt(2) != "-" || matricula.charAt(5) != "-") {
+            return false;
+        }
+        const m = [matricula.slice(0, 2), matricula.slice(3, 5), matricula.slice(6, 8)];
+
+        let numeros = 0,
+            letras = 0;
+
+        for (let i = 0; i < m.length; i++) {
+            if (isNumber(m[i])) {
+                numeros += 1;
+            }
+            if (isLetter(m[i])) {
+                letras += 1;
+            }
+        }
+        //verifica se a matricula contem os 4 numeros e 2 letras maiusculas
+        if (numeros == 2 && letras == 1) {
+            return true;
+        }
+        return false;
+    }
+
+    function isNumber(n) {
+        return !isNaN(parseFloat(n)) && isFinite(n);
+    }
+
+    function isLetter(str) {
+        let x = 0;
+        for (let i = 0; i < str.length; i++) {
+            if (str.charAt(i) === str.charAt(i).toUpperCase() && str.charAt(i).match(/[a-z]/gi)) {
+                x += 1;
+            }
+        }
+        if (x == str.length) {
+            return true;
+        }
+        else return false;
+    }
 }
